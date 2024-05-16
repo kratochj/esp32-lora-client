@@ -2,10 +2,6 @@
   LoRa Client
   Remote Node for LoRa
   Requires LoRa Library by Sandeep Mistry - https://github.com/sandeepmistry/arduino-LoRa
-  Requires DHTlib Library by Rob Tillaart
-
-  DroneBot Workshop 2023
-  https://dronebotworkshop.com
 */
 
 // Include required libraries
@@ -75,6 +71,13 @@ void onReceive(int packetSize) {
     // If we are this far then this message is for us
     // Update the controller data variable
     inMessage = incoming;
+
+
+    Logger::log(logLevel, "Received message:");
+    Logger::log(logLevel, "  Sender:" + String(sender));
+    Logger::log(logLevel, "  Recipient:" + String(recipient));
+    Logger::log(logLevel, "  Message ID:" + String(incomingMsgId));
+    Logger::log(logLevel, "  Message:" + String(incoming));
 }
 
 // Send LoRa Packet
@@ -101,15 +104,13 @@ unsigned long convertStrToLong(const String& time) {
     uint16_t timsize = time.length() + 1;
     char TIM[timsize];
     time.toCharArray(TIM, timsize);
-    return strtol(time.c_str(), NULL, 10);
+    return strtol(time.c_str(), nullptr, 10);
 }
 
-void setup()
-{
+void setup() {
+
     Serial.begin(9600);
     while (!Serial);
-
-    Logger::setLogLevel(Logger::VERBOSE);
 
     // Set LED as output (if used)
     pinMode(ledPin, OUTPUT);
@@ -121,8 +122,7 @@ void setup()
     // 433E6 for Asia
     // 866E6 for Europe
     // 915E6 for North America
-    if (!LoRa.begin(433E6))
-    {
+    if (!LoRa.begin(915E6)) {
         Serial.println("Starting LoRa failed!");
         while (1);
     }
@@ -136,26 +136,18 @@ void setup()
     Serial.println("LoRa init succeeded.");
 }
 
-void loop()
-{
+void loop() {
     // Run only if requested
-    if (inMessage != inMessageOld)
-    {
+    if (inMessage != inMessageOld) {
         // New message variable, take reading and send to controller
 
-        if (inMessage.startsWith("OLDS_PING#"))
-        {
+        if (inMessage.startsWith("OLDS_PING#")) {
             // Getting ping request
-            Logger::log(logLevel, "Received message:");
-            Logger::log(logLevel, "  Message:" + inMessage);
-
-
             String strTime = inMessage.substring(10);
             unsigned long timeMilis = convertStrToLong(strTime);
-            Logger::log(logLevel, "Received ping - time: " + String(timeMilis) + "ms");
-            sendMessage(
-                "OLDS_PONG#Reply from " + String(localAddress) + " - receivedTime: " + String(timeMilis) +
-                "ms, localTime: " + String(millis()));
+            unsigned long durationMilis = millis() - timeMilis;
+            Logger::log(logLevel, "Received ping - time: " + String(durationMilis) + "ms");
+            sendMessage("OLDS_PONG#Reply from " + String(localAddress) + " - duration: " + String(durationMilis) + "ms, localTime: " + String(millis()));
         }
 
         // Update the"old" data variable
@@ -164,7 +156,14 @@ void loop()
         // Place LoRa in Receive Mode
         LoRa.receive();
 
+        // Optional 2-second LED pulse (remark out if LED not used)
+        digitalWrite(ledPin, HIGH);
         Logger::log(logLevel, "Receiving");
-    }
 
+        // 2-second delay for DHT sensor
+        delay(2000);
+
+        // Optional 2-second LED pulse (remark out if LED not used)
+        digitalWrite(ledPin, LOW);
+    }
 }
