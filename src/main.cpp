@@ -1,9 +1,6 @@
 /*
-  LoRa Multi-Sensor Temperature & Humidity Monitor - Sensor
-  lora-temp-humid-sensor.ino
-  Remote Node for LoRa Temperature and Humidity Monitor
-  Uses Arduino Uno, Adafruit RFM9x LoRa Module & DHT22 Temp/Humid sensor
-  Sends Temperature and Humidity data to central controller
+  LoRa Client
+  Remote Node for LoRa
   Requires LoRa Library by Sandeep Mistry - https://github.com/sandeepmistry/arduino-LoRa
   Requires DHTlib Library by Rob Tillaart
 
@@ -15,12 +12,11 @@
 #include <SPI.h>
 #include <LoRa.h>
 #include <Logger.h>
-#include <stdlib.h>
 
 // Define the pins used by the LoRa module
-const int csPin = 5; // LoRa radio chip select
-const int resetPin = 14; // LoRa radio reset
-const int irqPin = 2; // Must be a hardware interrupt pin
+const int csPin = 4;     // LoRa radio chip select
+const int resetPin = 2;  // LoRa radio reset
+const int irqPin = 3;    // Must be a hardware interrupt pin
 
 const int ledPin = 13; // Pin for LED
 
@@ -46,40 +42,34 @@ String inMessageOld;
 byte msgCount = 0;
 
 // Source and destination addresses
-byte localAddress = 0xAA; // address of this device (must be unique, 0xAA or 0xBB)
-byte destination = 0x01; // destination to send to (controller = 0x01)
+byte localAddress = 0xAA;  // address of this device (must be unique, 0xAA or 0xBB)
+byte destination = 0x01;   // destination to send to (controller = 0x01)
 
 // Receive Callback Function
-void onReceive(int packetSize)
-{
-    if (packetSize == 0) return; // if there's no packet, return
+void onReceive(int packetSize) {
+    if (packetSize == 0) return;  // if there's no packet, return
 
     // Read packet header bytes:
-    int recipient = LoRa.read(); // recipient address
-    byte sender = LoRa.read(); // sender address
-    byte incomingMsgId = LoRa.read(); // incoming msg ID
-    byte incomingLength = LoRa.read(); // incoming msg length
+    int recipient = LoRa.read();        // recipient address
+    byte sender = LoRa.read();          // sender address
+    byte incomingMsgId = LoRa.read();   // incoming msg ID
+    byte incomingLength = LoRa.read();  // incoming msg length
 
-    String incoming = ""; // payload of packet
+    String incoming = "";  // payload of packet
 
-    while (LoRa.available())
-    {
-        // can't use readString() in callback, so
-        incoming += (char)LoRa.read(); // add bytes one by one
+    while (LoRa.available()) {        // can't use readString() in callback, so
+        incoming += (char) LoRa.read();  // add bytes one by one
     }
 
-    if (incomingLength != incoming.length())
-    {
-        // check length for error
-        Logger::log(Logger::ERROR, "message length does not match length");
-        return; // skip rest of function
+    if (incomingLength != incoming.length()) {  // check length for error
+        Serial.println("error: message length does not match length");
+        return;  // skip rest of function
     }
 
     // If the recipient isn't this device or broadcast,
-    if (recipient != localAddress && recipient != 0xFF)
-    {
-        Logger::log(logLevel, "This message is not for me (" + String(recipient) + "): " + incoming);
-        return; // skip rest of function
+    if (recipient != localAddress && recipient != 0xFF) {
+        Serial.println("This message is not for me.");
+        return;  // skip rest of function
     }
 
     // If we are this far then this message is for us
@@ -88,16 +78,15 @@ void onReceive(int packetSize)
 }
 
 // Send LoRa Packet
-void sendMessage(const String& outgoing)
-{
-    LoRa.beginPacket(); // start packet
-    LoRa.write(destination); // add destination address
-    LoRa.write(localAddress); // add sender address
-    LoRa.write(msgCount); // add message ID
-    LoRa.write(outgoing.length()); // add payload length
-    LoRa.print(outgoing); // add payload
-    LoRa.endPacket(); // finish packet and send it
-    msgCount++; // increment message ID
+void sendMessage(const String& outgoing) {
+    LoRa.beginPacket();             // start packet
+    LoRa.write(destination);        // add destination address
+    LoRa.write(localAddress);       // add sender address
+    LoRa.write(msgCount);           // add message ID
+    LoRa.write(outgoing.length());  // add payload length
+    LoRa.print(outgoing);           // add payload
+    LoRa.endPacket();               // finish packet and send it
+    msgCount++;                     // increment message ID
 
     Logger::log(logLevel, "Sent message:");
     Logger::log(logLevel, "  Target:" + String(destination));
@@ -106,8 +95,7 @@ void sendMessage(const String& outgoing)
     Logger::log(logLevel, "  Message:" + String(outgoing));
 }
 
-unsigned long convertStrToLong(String time)
-{
+unsigned long convertStrToLong(const String& time) {
     unsigned long mili;
     char Tim[9] = "";
     uint16_t timsize = time.length() + 1;
